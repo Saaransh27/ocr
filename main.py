@@ -1,5 +1,5 @@
-import cv2
 import pytesseract
+import cv2
 import numpy as np
 import imutils
 import streamlit as st
