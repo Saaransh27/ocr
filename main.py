@@ -8,19 +8,26 @@ from PIL import Image
 # Specify the Tesseract executable path
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
+def preprocess_image(image):
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Apply GaussianBlur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    # Use adaptive thresholding
+    adaptive_thresh = cv2.adaptiveThreshold(
+        blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    return adaptive_thresh
+
 def detect_license_plate(image):
     # Convert the image to OpenCV format
     image_cv = np.array(image)
     image_cv = image_cv[:, :, ::-1].copy()
 
-    # Preprocess the image: convert to grayscale
-    gray = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
-
-    # Apply GaussianBlur to reduce noise
-    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    # Preprocess the image
+    processed_image = preprocess_image(image_cv)
 
     # Use Canny edge detection
-    edged = cv2.Canny(gray, 30, 200)
+    edged = cv2.Canny(processed_image, 30, 200)
 
     # Find contours
     contours = cv2.findContours(edged.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -37,21 +44,24 @@ def detect_license_plate(image):
         peri = cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, 0.018 * peri, True)
 
-        # If the contour has four points, we assume it's the license plate
+        # Filter by aspect ratio and size
         if len(approx) == 4:
-            license_plate_contour = approx
             x, y, w, h = cv2.boundingRect(contour)
-            roi = gray[y:y + h, x:x + w]
-            break
+            aspect_ratio = w / float(h)
+            if 2 <= aspect_ratio <= 5:  # Typical aspect ratio for license plates
+                license_plate_contour = approx
+                roi = image_cv[y:y + h, x:x + w]
+                break
 
     # If ROI is found, apply OCR
     if roi is not None:
-        # Use thresholding to preprocess the ROI
-        roi = cv2.threshold(roi, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        # Preprocess ROI for better OCR results
+        roi_gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+        roi_thresh = cv2.threshold(roi_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
         # Use Tesseract to extract text
         custom_config = r'--oem 3 --psm 8'
-        text = pytesseract.image_to_string(roi, config=custom_config)
+        text = pytesseract.image_to_string(roi_thresh, config=custom_config)
 
         return text.strip()
     else:
