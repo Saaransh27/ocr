@@ -4,4 +4,3 @@ pytesseract
 numpy
 imutils
 pillow
-libgl1
