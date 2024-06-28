@@ -4,9 +4,13 @@ import numpy as np
 import imutils
 import streamlit as st
 from PIL import Image
+import platform
 
 # Specify the Tesseract executable path
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+if platform.system() == 'Windows':
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+else:
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # Adjust this path if necessary for your deployment
 
 def preprocess_image(image):
     # Convert to grayscale
